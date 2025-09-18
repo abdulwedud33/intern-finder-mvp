@@ -8,9 +8,15 @@ import Link from "next/link"
 import { useQuery } from "@tanstack/react-query"
 import { getListingById } from "@/services/listingsService"
 
-export default function JobDetailsPage({ params }: any ) {
+type JobDetailsPageProps = {
+  params: {
+    id: string
+  }
+}
+
+export default function JobDetailsPage({ params }: JobDetailsPageProps ) {
   const { data } = useQuery({ queryKey: ["company-listing", params.id], queryFn: () => getListingById(params.id) })
-  const job = data?.data
+  const job = data?.listing
   const id=params.id;
 
   return (
@@ -66,7 +72,7 @@ export default function JobDetailsPage({ params }: any ) {
                   </div>
                   <div>
                     <h1 className="text-2xl font-bold text-gray-900">{job?.title || "Job"}</h1>
-                    <p className="text-gray-600">{job?.location} • {(Array.isArray(job?.typesOfEmployment) ? job?.typesOfEmployment.join(", ") : job?.type) || ""} • {job?.applicantsCount ?? 0} / {job?.capacity ?? 0} Hired</p>
+                    <p className="text-gray-600">{job?.location} • {job?.typesOfEmployment?.join(", ") || ""} • {job?.applicantsCount ?? 0} / {job?.capacity ?? 0} Hired</p>
                   </div>
                 </div>
                 <Button className="bg-teal-500 hover:bg-teal-600">Edit Job Details</Button>
@@ -162,7 +168,7 @@ export default function JobDetailsPage({ params }: any ) {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Job Type</span>
-                  <span>{Array.isArray(job?.typesOfEmployment) ? job?.typesOfEmployment.join(", ") : job?.type}</span>
+                  <span>{job?.typesOfEmployment?.join(", ") || "—"}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Salary</span>
