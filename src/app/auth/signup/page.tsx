@@ -87,10 +87,93 @@ export default function SignUpPage() {
   })
 
   const handleJobSeekerSubmit = async (e: React.FormEvent) => {
+    console.log('Form submission started')
     e.preventDefault()
     e.stopPropagation()
-    if (jobSeekerCurrentStep < 3) {
-      setJobSeekerCurrentStep(jobSeekerCurrentStep + 1)
+    
+    console.log('Current step:', jobSeekerCurrentStep)
+    console.log('Form data:', jobSeekerData)
+    
+    // Handle form validation for the current step
+    if (jobSeekerCurrentStep === 1) {
+      console.log('Validating step 1')
+      // Basic info validation
+      if (!jobSeekerData.fullName || !jobSeekerData.email || !jobSeekerData.password || !jobSeekerData.confirmPassword) {
+        console.log('Missing required fields')
+        toast({ title: "Missing required fields", description: "Please fill in all required fields.", variant: "destructive" })
+        return
+      }
+      if (jobSeekerData.password !== jobSeekerData.confirmPassword) {
+        console.log('Passwords do not match')
+        toast({ title: "Passwords do not match", description: "Please make sure your passwords match.", variant: "destructive" })
+        return
+      }
+      console.log('Step 1 validation passed, moving to step 2')
+      setJobSeekerCurrentStep(2)
+      return
+    } else if (jobSeekerCurrentStep === 2) {
+      console.log('Validating step 2')
+      // Step 2 validation
+      if (!jobSeekerData.internshipType) {
+        console.log('Internship type not selected')
+        toast({ title: "Internship type required", description: "Please select an internship type.", variant: "destructive" })
+        return
+      }
+      console.log('Step 2 validation passed, moving to step 3')
+      setJobSeekerCurrentStep(3)
+      return
+    } else if (jobSeekerCurrentStep === 3) {
+      console.log('Final submission step')
+      // Final validation
+      if (!jobSeekerData.phone) {
+        toast({ title: "Phone is required", description: "Please enter your phone number.", variant: "destructive" })
+        return
+      }
+      if (!jobSeekerData.agreeToTerms) {
+        toast({ title: "Please accept the terms", description: "You must agree to continue.", variant: "destructive" })
+        return
+      }
+      
+      console.log('Preparing to submit form data...')
+      
+      const payload: InternPayload = {
+        name: jobSeekerData.fullName,
+        email: jobSeekerData.email,
+        password: jobSeekerData.password,
+        location: jobSeekerData.location,
+        phone: jobSeekerData.phone,
+        institution: jobSeekerData.education,
+        fieldOfStudy: jobSeekerData.program,
+        program: jobSeekerData.program,
+        internshipType: jobSeekerData.internshipType,
+        preferredRoles: jobSeekerData.desiredRoles
+          ? jobSeekerData.desiredRoles.split(",").map((s) => s.trim()).filter(Boolean)
+          : undefined,
+        linkedinUrl: jobSeekerData.linkedin || undefined,
+        personalWebsiteUrl: jobSeekerData.personalWebsite || undefined,
+        bio: jobSeekerData.bio || undefined,
+      }
+      
+      console.log('Submitting payload:', payload)
+      
+      try {
+        setIsJobSeekerSubmitting(true)
+        console.log('Calling registerIntern API...')
+        const result = await registerIntern(payload)
+        console.log('API Response:', result)
+        
+        if (result.ok) {
+          toast({ title: "Account created", description: "You can now log in." })
+          router.push("/auth/login")
+        } else {
+          toast({ title: "Registration failed", description: result.error || "An error occurred during registration.", variant: "destructive" })
+        }
+      } catch (error) {
+        console.error('Registration error:', error)
+        toast({ title: "Registration error", description: "An unexpected error occurred. Please try again.", variant: "destructive" })
+      } finally {
+        setIsJobSeekerSubmitting(false)
+      }
       return
     }
 
@@ -142,9 +225,44 @@ export default function SignUpPage() {
   }
 
   const handleCompanySubmit = async (e: React.FormEvent) => {
+    console.log('Company form submission started')
     e.preventDefault()
     e.stopPropagation()
-    if (companyCurrentStep < 6) {
+    
+    console.log('Current company step:', companyCurrentStep)
+    console.log('Company form data:', companyData)
+    
+    // Handle company form steps with validation
+    if (companyCurrentStep === 1) {
+      console.log('Validating company step 1')
+      // Basic company info validation
+      if (!companyData.companyName || !companyData.companyEmail || !companyData.password || !companyData.confirmPassword) {
+        console.log('Missing required company fields')
+        toast({ title: "Missing required fields", description: "Please fill in all required fields.", variant: "destructive" })
+        return
+      }
+      if (companyData.password !== companyData.confirmPassword) {
+        console.log('Company passwords do not match')
+        toast({ title: "Passwords do not match", description: "Please make sure your passwords match.", variant: "destructive" })
+        return
+      }
+      console.log('Company step 1 validation passed, moving to step 2')
+      setCompanyCurrentStep(2)
+      return
+    } else if (companyCurrentStep === 2) {
+      console.log('Validating company step 2')
+      // Company details validation
+      if (!companyData.organizationType) {
+        console.log('Organization type not selected')
+        toast({ title: "Organization type required", description: "Please select your organization type.", variant: "destructive" })
+        return
+      }
+      console.log('Company step 2 validation passed, moving to step 3')
+      setCompanyCurrentStep(3)
+      return
+    } else if (companyCurrentStep < 6) {
+      // For steps 3-5, just advance to next step
+      console.log(`Company step ${companyCurrentStep} completed, moving to step ${companyCurrentStep + 1}`)
       setCompanyCurrentStep(companyCurrentStep + 1)
       return
     }
@@ -190,15 +308,34 @@ export default function SignUpPage() {
       compensationRange: companyData.compensationRange || undefined,
     }
 
-    setIsCompanySubmitting(true)
-    const result = await registerCompany(payload)
-    setIsCompanySubmitting(false)
-
-    if (result.ok) {
-      toast({ title: "Company registered", description: "You can now log in." })
-      router.push("/auth/login")
-    } else {
-      toast({ title: "Registration failed", description: result.error, variant: "destructive" })
+    console.log('Preparing to submit company form data...')
+    console.log('Company payload:', payload)
+    
+    try {
+      setIsCompanySubmitting(true)
+      console.log('Calling registerCompany API...')
+      const result = await registerCompany(payload)
+      console.log('Company API Response:', result)
+      
+      if (result.ok) {
+        toast({ title: "Company registered", description: "You can now log in." })
+        router.push("/auth/login")
+      } else {
+        toast({ 
+          title: "Registration failed", 
+          description: result.error || "An error occurred during company registration.", 
+          variant: "destructive" 
+        })
+      }
+    } catch (error) {
+      console.error('Company registration error:', error)
+      toast({ 
+        title: "Registration error", 
+        description: "An unexpected error occurred. Please try again.", 
+        variant: "destructive" 
+      })
+    } finally {
+      setIsCompanySubmitting(false)
     }
   }
 
@@ -480,8 +617,12 @@ export default function SignUpPage() {
                             >
                               Back
                             </Button>
-                            <Button type="submit" className="w-full bg-teal-600 hover:bg-teal-700" disabled={isJobSeekerSubmitting}>
-                              {isJobSeekerSubmitting ? "Please wait..." : "Continue"}
+                            <Button 
+                              type="submit" 
+                              className="w-full bg-teal-600 hover:bg-teal-700" 
+                              disabled={isJobSeekerSubmitting}
+                            >
+                              {jobSeekerCurrentStep === 3 ? "Submit" : "Continue"}
                             </Button>
                           </div>
                         </div>
