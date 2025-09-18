@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -102,15 +103,11 @@ const getStatusBadge = (status: string) => {
   return statusConfig[status as keyof typeof statusConfig] || statusConfig["in-review"]
 }
 
-interface PageProps {
-  params: {
-    id: string;
-  };
-}
-
-export default function JobApplicantsPage({ params }: PageProps) {
-  const [viewMode, setViewMode] = useState<"pipeline" | "table">("table")
-  const [searchTerm, setSearchTerm] = useState("")
+export default function JobApplicantsPage() {
+  const params = useParams()
+  const id = params.id as string;
+  const [viewMode, setViewMode] = useState<"pipeline" | "table">("table");
+  const [searchTerm, setSearchTerm] = useState("");
 
   const filteredApplicants = applicants.filter((applicant) =>
     applicant.name.toLowerCase().includes(searchTerm.toLowerCase()),
