@@ -522,7 +522,9 @@ export default function SignUpPage() {
                             >
                               Back
                             </Button>
-                            <Button type="submit" className="w-full bg-teal-600 hover:bg-teal-700" disabled={isJobSeekerSubmitting}>
+                            <Button type="submit"
+                            onClick={handleJobSeekerSubmit}
+                             className="w-full bg-teal-600 hover:bg-teal-700" disabled={isJobSeekerSubmitting}>
                               {isJobSeekerSubmitting ? "Submitting..." : "Done"}
                             </Button>
                           </div>
@@ -871,7 +873,9 @@ export default function SignUpPage() {
                             >
                               Back
                             </Button>
-                            <Button type="submit" className="w-full bg-teal-600 hover:bg-teal-700" disabled={isCompanySubmitting}>
+                            <Button type="submit"
+                            onClick={handleCompanySubmit}
+                             className="w-full bg-teal-600 hover:bg-teal-700" disabled={isCompanySubmitting}>
                               {isCompanySubmitting ? "Submitting..." : "Done"}
                             </Button>
                           </div>
