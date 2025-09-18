@@ -65,9 +65,14 @@ export default function SettingsPage() {
     uploadLogo 
   } = useCompany();
 
-  const [activeTab, setActiveTab] = useState("profile");
-  const [isUploading, setIsUploading] = useState(false);
-  const [newLocation, setNewLocation] = useState("");
+  const [activeTab, setActiveTab] = useState("profile")
+  const [isUploading, setIsUploading] = useState(false)
+  const [newLocation, setNewLocation] = useState("")
+  const [notifications, setNotifications] = useState({
+    applications: true,
+    jobOpenings: false,
+    recommendations: true,
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState<FormData>({
@@ -119,7 +124,7 @@ export default function SettingsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    setIsUploading(true);
     
     try {
       // Prepare the data to send to the API
@@ -150,7 +155,7 @@ export default function SettingsPage() {
       console.error('Error updating profile:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to update profile');
     } finally {
-      setIsLoading(false);
+      setIsUploading(false);
     }
   };
 
@@ -656,11 +661,6 @@ export default function SettingsPage() {
   );
 
 
-  const [notifications, setNotifications] = useState({
-    applications: true,
-    jobOpenings: false,
-    recommendations: true,
-  })
 
   return (
     <div className="p-6">

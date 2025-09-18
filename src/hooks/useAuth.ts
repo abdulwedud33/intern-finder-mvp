@@ -143,3 +143,26 @@ export function useLogout() {
     toast.success("Logged out successfully!")
   }
 }
+
+// Combined auth hook that provides all auth-related functionality
+export function useAuth() {
+  const { data: user, isLoading, error } = useAuthUser()
+  const loginMutation = useLogin()
+  const registerInternMutation = useRegisterIntern()
+  const registerCompanyMutation = useRegisterCompany()
+  const logoutMutation = useLogout()
+
+  return {
+    user,
+    isLoading,
+    error,
+    isAuthenticated: !!user,
+    login: loginMutation.mutate,
+    loginAsync: loginMutation.mutateAsync,
+    registerIntern: registerInternMutation.mutate,
+    registerInternAsync: registerInternMutation.mutateAsync,
+    registerCompany: registerCompanyMutation.mutate,
+    registerCompanyAsync: registerCompanyMutation.mutateAsync,
+    logout: logoutMutation,
+  }
+}

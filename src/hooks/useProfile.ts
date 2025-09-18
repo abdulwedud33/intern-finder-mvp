@@ -12,8 +12,8 @@ import {
   type CompanyProfileData,
   type InternProfileData,
   type TeamMember,
-  type Experience,
 } from "@/services/profileService"
+import type { Experience } from "@/types/api"
 import { toast } from "sonner"
 
 // Query keys
@@ -114,7 +114,7 @@ export function useAddExperience() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (payload: Omit<Experience, 'id'>) => addExperience(payload),
+    mutationFn: (payload: Omit<Experience, 'id' | '_id'>) => addExperience(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: profileKeys.internMe() })
       toast.success("Experience added successfully!")

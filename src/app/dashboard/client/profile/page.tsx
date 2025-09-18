@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { useUpdateClientProfile } from "@/hooks/useClientProfile"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Globe, MapPin, Users, Calendar, Settings, Plus, X } from "lucide-react"
 import {
@@ -50,6 +51,18 @@ export default function ClientProfile({ params }: ClientProfileProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [isAddingMember, setIsAddingMember] = useState(false)
   const [profile, setProfile] = useState<CompanyProfile | null>(null)
+  // Define the form data type
+  type OfficeLocation = {
+    address: string
+    city: string
+    country: string
+    isHeadquarters?: boolean
+  }
+
+  interface CompanyProfileFormData extends Omit<CompanyProfile, '_id' | 'createdAt' | 'updatedAt' | 'teamMembers' | 'socialMedia' | 'officeLocations'> {
+    officeLocations: OfficeLocation[]
+  }
+
   const [editForm, setEditForm] = useState<CompanyProfileFormData>({
     name: "",
     website: "",
@@ -59,6 +72,7 @@ export default function ClientProfile({ params }: ClientProfileProps) {
     primaryContact: "",
     pressContact: "",
     generalContact: "",
+    founded: 0,
     employees: "",
     techStack: [],
     officeLocations: []
@@ -73,38 +87,93 @@ export default function ClientProfile({ params }: ClientProfileProps) {
   })
 
   // Fetch data using React Query hooks
-  const { data: profileData, isLoading, error } = isPublic
-    ? usePublicCompanyProfile(params?.id || "")
-    : useCompanyProfile()
+  const publicProfileQuery = usePublicCompanyProfile(params?.id || "")
+  const privateProfileQuery = useCompanyProfile()
+  
+  // Use the appropriate query based on isPublic
+  const { data: profileData, isLoading, error } = isPublic ? publicProfileQuery : privateProfileQuery
 
   // Update local profile state when profileData changes
   useEffect(() => {
     if (profileData) {
-      setProfile(profileData)
+      // Type assertion to ensure profileData is treated as CompanyProfile
+      const companyData = profileData as unknown as CompanyProfile;
+      
+      // Create a new company profile with default values
+      const companyProfile: CompanyProfile = {
+        _id: companyData._id || '',
+        name: companyData.name || "",
+        website: companyData.website || "",
+        description: companyData.description || "",
+        industry: companyData.industry || "",
+        phone: companyData.phone || "",
+        primaryContact: companyData.primaryContact || "",
+        pressContact: companyData.pressContact || "",
+        generalContact: companyData.generalContact || "",
+        founded: companyData.founded || new Date().getFullYear(),
+        employees: companyData.employees || "",
+        techStack: Array.isArray(companyData.techStack) ? companyData.techStack : [],
+        officeLocations: Array.isArray(companyData.officeLocations) 
+          ? companyData.officeLocations.map(loc => ({
+              address: loc.address || "",
+              city: loc.city || "",
+              country: loc.country || "",
+              isHeadquarters: loc.isHeadquarters || false
+            }))
+          : [],
+        teamMembers: Array.isArray(companyData.teamMembers) 
+          ? companyData.teamMembers 
+          : [],
+        socialMedia: companyData.socialMedia || {},
+        createdAt: companyData.createdAt || new Date().toISOString(),
+        updatedAt: companyData.updatedAt || new Date().toISOString()
+      };
+      
+      setProfile(companyProfile);
+      
+      // Update edit form with the properly typed data
       setEditForm({
-        name: profileData.name || "",
-        website: profileData.website || "",
-        description: profileData.description || "",
-        industry: profileData.industry || "",
-        phone: profileData.phone || "",
-        primaryContact: profileData.primaryContact || "",
-        pressContact: profileData.pressContact || "",
-        generalContact: profileData.generalContact || "",
-        founded: profileData.founded,
-        employees: profileData.employees || "",
-        techStack: profileData.techStack || [],
-        officeLocations: (profileData.officeLocations || []) as Array<{
-          address: string
-          city: string
-          country: string
-          isHeadquarters?: boolean
-        }>
-      })
+        name: companyProfile.name,
+        website: companyProfile.website || "",
+        description: companyProfile.description || "",
+        industry: companyProfile.industry || "",
+        phone: companyProfile.phone || "",
+        primaryContact: companyProfile.primaryContact || "",
+        pressContact: companyProfile.pressContact || "",
+        generalContact: companyProfile.generalContact || "",
+        founded: companyProfile.founded || new Date().getFullYear(),
+        employees: companyProfile.employees || "",
+        techStack: companyProfile.techStack ? [...companyProfile.techStack] : [],
+        officeLocations: companyProfile.officeLocations 
+          ? companyProfile.officeLocations.map(loc => ({
+              address: loc.address || "",
+              city: loc.city || "",
+              country: loc.country || "",
+              isHeadquarters: loc.isHeadquarters || false
+            }))
+          : []
+      });
     }
   }, [profileData])
 
   // Mutations (only for self dashboard)
-  const updateProfileMutation = useUpdateCompanyProfile()
+  const updateProfileMutation = useUpdateClientProfile()
+
+  const handleSave = async () => {
+    try {
+      await updateProfileMutation.mutateAsync(editForm)
+      setIsEditing(false)
+      // Optionally show a success message here
+    } catch (error) {
+      // Handle error (e.g., show error message to user)
+      console.error('Error updating profile:', error)
+    }
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // ...
+  }
+
   const addMemberMutation = useAddTeamMember()
   const removeMemberMutation = useRemoveTeamMember()
 
@@ -133,11 +202,11 @@ export default function ClientProfile({ params }: ClientProfileProps) {
     }
   }
 
-  const handleEdit = () => {
+  const handleStartEditing = () => {
     if (!profile) return
     
     setEditForm({
-      name: profile.name || "",
+      name: profile.name,
       website: profile.website || "",
       description: profile.description || "",
       industry: profile.industry || "",
@@ -145,25 +214,33 @@ export default function ClientProfile({ params }: ClientProfileProps) {
       primaryContact: profile.primaryContact || "",
       pressContact: profile.pressContact || "",
       generalContact: profile.generalContact || "",
-      founded: profile.founded,
+      founded: profile.founded || 0,
       employees: profile.employees || "",
-      techStack: profile.techStack || [],
-      officeLocations: (profile.officeLocations || []) as Array<{
-        address: string
-        city: string
-        country: string
-        isHeadquarters?: boolean
-      }>
+      techStack: [...(profile.techStack || [])],
+      officeLocations: (profile.officeLocations || []) as OfficeLocation[]
     })
     setIsEditing(true)
   }
 
-  const handleSave = () => {
-    updateProfileMutation.mutate(editForm, {
-      onSuccess: () => {
-        setIsEditing(false)
-      }
-    })
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editForm.name.trim()) {
+      toast.error("Company name is required")
+      return
+    }
+
+    // Prepare the form data with proper types
+    const formDataToSubmit = {
+      ...editForm,
+      founded: editForm.founded ? String(editForm.founded) : undefined,
+    }
+
+    try {
+      await updateProfileMutation.mutateAsync(formDataToSubmit as any)
+      setIsEditing(false)
+    } catch (error) {
+      console.error("Failed to update profile:", error)
+    }
   }
 
   const handleAddMember = () => {
@@ -239,7 +316,7 @@ export default function ClientProfile({ params }: ClientProfileProps) {
 
         {!isPublic && (
           <div className="flex items-center space-x-3">
-            <Button onClick={handleEdit} className="px-4 py-2 rounded-lg border bg-white border-teal-600 text-teal-600">
+            <Button onClick={handleStartEditing} className="px-4 py-2 rounded-lg border bg-white border-teal-600 text-teal-600">
               Profile Settings
             </Button>
           </div>
@@ -374,7 +451,10 @@ export default function ClientProfile({ params }: ClientProfileProps) {
             {officeLocations.map((loc, i) => (
               <div key={i} className="flex items-center space-x-3">
                 <MapPin className="h-4 w-4 text-gray-400" />
-                <span className="text-sm text-gray-700">{loc}</span>
+                <span className="text-sm text-gray-700">
+                  {loc.address}, {loc.city}, {loc.country}
+                  {loc.isHeadquarters && ' (HQ)'}
+                </span>
               </div>
             ))}
             {officeLocations.length === 0 && <p className="text-center text-gray-500 py-4">No office locations added</p>}
@@ -423,7 +503,7 @@ export default function ClientProfile({ params }: ClientProfileProps) {
                   <Input
                     id="founded"
                     value={editForm.founded}
-                    onChange={(e) => setEditForm((prev) => ({ ...prev, founded: e.target.value }))}
+                    onChange={(e) => setEditForm((prev) => ({ ...prev, founded: parseInt(e.target.value) || 0 }))}
                   />
                 </div>
                 <div>

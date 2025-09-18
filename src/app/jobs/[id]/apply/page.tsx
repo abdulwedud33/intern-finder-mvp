@@ -17,21 +17,33 @@ import { getListingById } from "@/services/listingsService"
 import { applyToListing } from "@/services/applicationsService"
 import { useToast } from "@/components/ui/use-toast"
 import { useAuthUser } from "@/hooks/useAuth"
-import { use } from "react"
 
-export default function JobApplicationPage({ params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = use(params)
+function JobApplicationContent({ listingId }: { listingId: string }) {
+  const { data: user } = useAuthUser()
+  const { toast } = useToast()
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [resumeFile, setResumeFile] = useState<File | null>(null)
-  const queryClient = useQueryClient()
-  const { toast } = useToast()
-  const { data: user } = useAuthUser()
-  const { data } = useQuery({ queryKey: ["listing", resolvedParams.id], queryFn: () => getListingById(resolvedParams.id) })
+  const [formData, setFormData] = useState({
+    coverLetter: "",
+    previousJobTitle: "",
+  })
 
-  // Redirect non-interns
-  if (user && user.role !== 'intern') {
-    router.push(`/jobs/${resolvedParams.id}`)
+  const { data } = useQuery({ 
+    queryKey: ["listing", listingId], 
+    queryFn: () => getListingById(listingId) 
+  })
+
+  // Handle redirection for non-intern users
+  useEffect(() => {
+    if (user && user.role !== 'intern') {
+      router.push(`/jobs/${listingId}`)
+    }
+  }, [user, router, listingId])
+
+  // Don't render anything if user is not an intern
+  if (user?.role !== 'intern') {
     return null
   }
   const listing = (data as { data?: unknown } | undefined)?.data as {
@@ -56,11 +68,6 @@ export default function JobApplicationPage({ params }: { params: Promise<{ id: s
     description: listing?.description || "",
     requirements: Array.isArray(listing?.qualifications) ? listing?.qualifications : [],
   }
-
-  const [formData, setFormData] = useState({
-    coverLetter: "",
-    previousJobTitle: "",
-  })
 
   const mutation = useMutation({
     mutationFn: async () => {
