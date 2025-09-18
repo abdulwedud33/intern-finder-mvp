@@ -102,7 +102,13 @@ const getStatusBadge = (status: string) => {
   return statusConfig[status as keyof typeof statusConfig] || statusConfig["in-review"]
 }
 
-export default function JobApplicantsPage({ params }: { params: { id: string } }) {
+interface PageProps {
+  params: {
+    id: string;
+  };
+}
+
+export default function JobApplicantsPage({ params }: PageProps) {
   const [viewMode, setViewMode] = useState<"pipeline" | "table">("table")
   const [searchTerm, setSearchTerm] = useState("")
 
