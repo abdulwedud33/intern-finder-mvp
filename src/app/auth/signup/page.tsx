@@ -88,6 +88,7 @@ export default function SignUpPage() {
 
   const handleJobSeekerSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    e.stopPropagation()
     if (jobSeekerCurrentStep < 3) {
       setJobSeekerCurrentStep(jobSeekerCurrentStep + 1)
       return
@@ -142,6 +143,7 @@ export default function SignUpPage() {
 
   const handleCompanySubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    e.stopPropagation()
     if (companyCurrentStep < 6) {
       setCompanyCurrentStep(companyCurrentStep + 1)
       return
@@ -523,8 +525,7 @@ export default function SignUpPage() {
                               Back
                             </Button>
                             <Button 
-                              type="button"
-                              onClick={handleJobSeekerSubmit}
+                              type="submit"
                               className="w-full bg-teal-600 hover:bg-teal-700" 
                               disabled={isJobSeekerSubmitting}
                             >
@@ -877,8 +878,7 @@ export default function SignUpPage() {
                               Back
                             </Button>
                             <Button 
-                              type="button"
-                              onClick={handleCompanySubmit}
+                              type="submit"
                               className="w-full bg-teal-600 hover:bg-teal-700" 
                               disabled={isCompanySubmitting}
                             >
