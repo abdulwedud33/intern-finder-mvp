@@ -31,7 +31,7 @@ const FileUploadPlaceholder = ({
 
 export default function SignUpPage() {
   const [activeTab, setActiveTab] = useState("jobseeker")
-  const [jobSeekerCurrentStep, setJobSeekerCurrentStep] = useState(1)
+  const [jobSeekerCurrentStep, setJobSeekerCurrentStep] = useState<number>(1)
   const [companyCurrentStep, setCompanyCurrentStep] = useState(1)
   const [isJobSeekerSubmitting, setIsJobSeekerSubmitting] = useState(false)
   const [isCompanySubmitting, setIsCompanySubmitting] = useState(false)
@@ -158,15 +158,39 @@ export default function SignUpPage() {
       
       try {
         setIsJobSeekerSubmitting(true)
-        console.log('Calling registerIntern API...')
+        console.log('Calling registerIntern API with payload:', JSON.stringify(payload, null, 2))
         const result = await registerIntern(payload)
         console.log('API Response:', result)
         
         if (result.ok) {
-          toast({ title: "Account created", description: "You can now log in." })
-          router.push("/auth/login")
+          console.log('Registration successful, redirecting to login...')
+          const { id } = toast({ 
+            title: "Account created", 
+            description: "You can now log in.",
+            duration: 2000
+          })
+          
+          // Use a setTimeout as a fallback in case the toast is dismissed manually
+          setTimeout(() => {
+            if (window.location.pathname === '/auth/signup') {
+              console.log('Toast closed, navigating to login')
+              router.push("/auth/login")
+            }
+          }, 2000)
+          // Add a fallback navigation in case toast onClose doesn't trigger
+          setTimeout(() => {
+            if (window.location.pathname === '/auth/signup') {
+              console.log('Fallback navigation to login')
+              router.push("/auth/login")
+            }
+          }, 2000)
         } else {
-          toast({ title: "Registration failed", description: result.error || "An error occurred during registration.", variant: "destructive" })
+          console.error('Registration failed:', result.error)
+          toast({ 
+            title: "Registration failed", 
+            description: result.error || "An error occurred during registration.", 
+            variant: "destructive" 
+          })
         }
       } catch (error) {
         console.error('Registration error:', error)
