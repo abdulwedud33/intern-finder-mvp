@@ -46,7 +46,8 @@ interface ClientProfileProps {
   params?: { id?: string } // if id exists → public view
 }
 
-export default function ClientProfile({ params }: ClientProfileProps) {
+export default function ClientProfile({ params }: any) {
+  const id = params?.id;
   const isPublic = Boolean(params?.id)
   const [isEditing, setIsEditing] = useState(false)
   const [isAddingMember, setIsAddingMember] = useState(false)

@@ -8,9 +8,11 @@ import Link from "next/link"
 import { useQuery } from "@tanstack/react-query"
 import { getListingById } from "@/services/listingsService"
 
-export default function JobDetailsPage({ params }: { params: { id: string } }) {
+export default function JobDetailsPage({ params }: any ) {
   const { data } = useQuery({ queryKey: ["company-listing", params.id], queryFn: () => getListingById(params.id) })
   const job = data?.data
+  const id=params.id;
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-6xl mx-auto p-6">
