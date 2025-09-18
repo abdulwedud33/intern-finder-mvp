@@ -11,24 +11,37 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Loader2, Upload, AlertCircle, CheckCircle } from "lucide-react"
 import { getAuthUser, updateUserDetails, updateUserPassword } from "@/lib/api"
+import type { ApiResponse } from "@/types/api"
 
-interface ProfileFormData {
-  name: string
-  email: string
-  phone: string
-}
+// Type definitions
+type UserData = {
+  name?: string;
+  email?: string;
+  phone?: string;
+  user?: {
+    name?: string;
+    email?: string;
+    phone?: string;
+  };
+};
 
-interface PasswordFormData {
-  currentPassword: string
-  newPassword: string
-  confirmPassword: string
-}
+type ProfileFormData = {
+  name: string;
+  email: string;
+  phone: string;
+};
 
-interface NotificationSettings {
-  applications: boolean
-  jobOpenings: boolean
-  recommendations: boolean
-}
+type PasswordFormData = {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+};
+
+type NotificationSettings = {
+  applications: boolean;
+  jobOpenings: boolean;
+  recommendations: boolean;
+};
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("profile")
@@ -57,23 +70,21 @@ export default function SettingsPage() {
   useEffect(() => {
     const loadUserData = async () => {
       try {
-        setIsLoading(true)
-        const response = await getAuthUser()
+        setIsLoading(true);
+        const response = await getAuthUser();
+        
         if (response.ok && response.data) {
-          const userData = response.data as any // Temporary any type, we'll handle the response structure
+          const userData = response.data as UserData;
           
-          // Log the response for debugging
-          console.log('User data response:', userData)
-          
-          // Set profile data from the response
-          // The actual structure might be userData.user or similar depending on your API
           setProfileData({
-            name: userData.name || userData.fullName || userData.user?.name || "",
+            name: userData.name || userData.user?.name || "",
             email: userData.email || userData.user?.email || "",
-            phone: userData.phone || userData.phoneNumber || userData.user?.phone || ""
-          })
+            phone: userData.phone || userData.user?.phone || ""
+          });
         } else {
-          throw new Error(response.error || "Failed to fetch user data")
+          // Type-safe error handling for the API response
+          const errorMessage = 'error' in response ? response.error : "Failed to fetch user data";
+          throw new Error(errorMessage);
         }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Failed to load user data"
@@ -121,28 +132,30 @@ export default function SettingsPage() {
   }
 
   // Save profile changes
-  const handleSaveProfile = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSaving(true)
-    setError(null)
-    setSuccess(null)
+  const handleSaveProfile = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsSaving(true);
+    setError(null);
+    setSuccess(null);
 
     try {
+      // Only include name and email as per the API type definition
       const response = await updateUserDetails({
         name: profileData.name,
-        email: profileData.email,
-        phone: profileData.phone
-      })
+        email: profileData.email
+      });
 
       if (response.ok) {
-        setSuccess("Profile updated successfully!")
+        setSuccess("Profile updated successfully!");
         toast({
           title: "Success",
           description: "Your profile has been updated.",
           variant: "default"
-        })
+        });
       } else {
-        throw new Error(response.error || "Failed to update profile")
+        // Type-safe error handling for the API response
+        const errorMessage = 'error' in response ? response.error : "Failed to update profile";
+        throw new Error(errorMessage);
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "An error occurred"
@@ -158,19 +171,19 @@ export default function SettingsPage() {
   }
 
   // Change password
-  const handleChangePassword = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError(null)
-    setSuccess(null)
+  const handleChangePassword = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
 
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setError("New passwords do not match")
-      return
+      setError("New passwords do not match");
+      return;
     }
 
     if (passwordData.newPassword.length < 8) {
-      setError("Password must be at least 8 characters long")
-      return
+      setError("Password must be at least 8 characters long");
+      return;
     }
 
     setIsSaving(true)
@@ -210,11 +223,11 @@ export default function SettingsPage() {
   }
 
   // Save notification preferences
-  const handleSaveNotifications = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSaving(true)
-    setError(null)
-    setSuccess(null)
+  const handleSaveNotifications = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsSaving(true);
+    setError(null);
+    setSuccess(null);
 
     try {
       // Simulate API call
@@ -293,8 +306,8 @@ export default function SettingsPage() {
                       <AvatarImage src="/professional-headshot.png" alt="Profile" />
                       <AvatarFallback>
                         {profileData.name
-                          ?.split(" ")
-                          .map(n => n[0])
+                          .split(" ")
+                          .map((n: string) => n[0])
                           .join("")}
                       </AvatarFallback>
                     </Avatar>
@@ -353,7 +366,7 @@ export default function SettingsPage() {
                   </Button>
                   <Button 
                     type="submit" 
-                    className="bg-teal-600 hover:bg-teal-700"
+                    className="bg-teal-600 hover:bg-teal-700 text-white"
                     disabled={isSaving}
                   >
                     {isSaving ? (
@@ -428,7 +441,7 @@ export default function SettingsPage() {
                     </div>
                     <Button 
                       type="submit" 
-                      className="bg-teal-600 hover:bg-teal-700"
+                      className="bg-teal-600 hover:bg-teal-700 text-white"
                       disabled={isSaving}
                     >
                       {isSaving ? (
@@ -507,7 +520,7 @@ export default function SettingsPage() {
                   </Button>
                   <Button 
                     type="submit" 
-                    className="bg-teal-600 hover:bg-teal-700"
+                    className="bg-teal-600 hover:bg-teal-700 text-white"
                     disabled={isSaving}
                   >
                     {isSaving ? (

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -38,6 +38,9 @@ import {
 } from "@/components/ui/alert-dialog"
 import Link from "next/link"
 
+import { CompanyProfile, TeamMember } from "@/types/company"
+import { CompanyProfileFormData } from "@/types/forms"
+
 interface ClientProfileProps {
   params?: { id?: string } // if id exists → public view
 }
@@ -46,30 +49,59 @@ export default function ClientProfile({ params }: ClientProfileProps) {
   const isPublic = Boolean(params?.id)
   const [isEditing, setIsEditing] = useState(false)
   const [isAddingMember, setIsAddingMember] = useState(false)
-  const [editForm, setEditForm] = useState({
+  const [profile, setProfile] = useState<CompanyProfile | null>(null)
+  const [editForm, setEditForm] = useState<CompanyProfileFormData>({
     name: "",
-    description: "",
     website: "",
-    founded: "",
-    employees: "",
+    description: "",
     industry: "",
+    phone: "",
     primaryContact: "",
     pressContact: "",
     generalContact: "",
-    phone: "",
-    techStack: [] as string[],
-    officeLocations: [] as string[]
+    employees: "",
+    techStack: [],
+    officeLocations: []
   })
+  const [techInput, setTechInput] = useState("")
   const [newMember, setNewMember] = useState({ name: "", role: "" })
+  const [newOffice, setNewOffice] = useState({
+    address: "",
+    city: "",
+    country: "",
+    isHeadquarters: false
+  })
 
   // Fetch data using React Query hooks
-  const {
-    data: profile,
-    isLoading,
-    error
-  } = isPublic 
-    ? usePublicCompanyProfile(params!.id!) 
+  const { data: profileData, isLoading, error } = isPublic
+    ? usePublicCompanyProfile(params?.id || "")
     : useCompanyProfile()
+
+  // Update local profile state when profileData changes
+  useEffect(() => {
+    if (profileData) {
+      setProfile(profileData)
+      setEditForm({
+        name: profileData.name || "",
+        website: profileData.website || "",
+        description: profileData.description || "",
+        industry: profileData.industry || "",
+        phone: profileData.phone || "",
+        primaryContact: profileData.primaryContact || "",
+        pressContact: profileData.pressContact || "",
+        generalContact: profileData.generalContact || "",
+        founded: profileData.founded,
+        employees: profileData.employees || "",
+        techStack: profileData.techStack || [],
+        officeLocations: (profileData.officeLocations || []) as Array<{
+          address: string
+          city: string
+          country: string
+          isHeadquarters?: boolean
+        }>
+      })
+    }
+  }, [profileData])
 
   // Mutations (only for self dashboard)
   const updateProfileMutation = useUpdateCompanyProfile()
@@ -77,27 +109,51 @@ export default function ClientProfile({ params }: ClientProfileProps) {
   const removeMemberMutation = useRemoveTeamMember()
 
   if (isLoading) return <LoadingPage />
-  if (error) return <ErrorPage error={error} />
+  if (error) return <ErrorPage error={error as Error} />
   if (!profile) return <ErrorPage title="Profile not found" description="The company profile you're looking for doesn't exist." />
 
   const teamMembers = Array.isArray(profile?.teamMembers) ? profile.teamMembers : []
   const techStack = Array.isArray(profile?.techStack) ? profile.techStack : []
   const officeLocations = Array.isArray(profile?.officeLocations) ? profile.officeLocations : []
 
+  const handleRemoveTech = (techToRemove: string) => {
+    setEditForm(prev => ({
+      ...prev,
+      techStack: prev.techStack?.filter(tech => tech !== techToRemove) || []
+    }))
+  }
+
+  const handleAddTech = () => {
+    if (techInput.trim() && !editForm.techStack?.includes(techInput)) {
+      setEditForm(prev => ({
+        ...prev,
+        techStack: [...(prev.techStack || []), techInput]
+      }))
+      setTechInput("")
+    }
+  }
+
   const handleEdit = () => {
+    if (!profile) return
+    
     setEditForm({
       name: profile.name || "",
-      description: profile.description || "",
       website: profile.website || "",
-      founded: profile.founded || "",
-      employees: profile.employees || "",
+      description: profile.description || "",
       industry: profile.industry || "",
+      phone: profile.phone || "",
       primaryContact: profile.primaryContact || "",
       pressContact: profile.pressContact || "",
       generalContact: profile.generalContact || "",
-      phone: profile.phone || "",
-      techStack,
-      officeLocations
+      founded: profile.founded,
+      employees: profile.employees || "",
+      techStack: profile.techStack || [],
+      officeLocations: (profile.officeLocations || []) as Array<{
+        address: string
+        city: string
+        country: string
+        isHeadquarters?: boolean
+      }>
     })
     setIsEditing(true)
   }
