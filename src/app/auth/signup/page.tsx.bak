@@ -87,12 +87,33 @@ export default function SignUpPage() {
   })
 
   const handleJobSeekerSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (jobSeekerCurrentStep < 3) {
-      setJobSeekerCurrentStep(jobSeekerCurrentStep + 1)
-      return
+    e.preventDefault();
+    
+    // Handle form validation for the current step
+    if (jobSeekerCurrentStep === 1) {
+      if (!jobSeekerData.fullName || !jobSeekerData.email || !jobSeekerData.password || !jobSeekerData.confirmPassword) {
+        toast({ title: "Missing required fields", description: "Please fill in all required fields.", variant: "destructive" });
+        return;
+      }
+      if (jobSeekerData.password !== jobSeekerData.confirmPassword) {
+        toast({ title: "Passwords do not match", description: "Please make sure your passwords match.", variant: "destructive" });
+        return;
+      }
+      if (!jobSeekerData.agreeToTerms) {
+        toast({ title: "Terms not accepted", description: "You must accept the terms and conditions to continue.", variant: "destructive" });
+        return;
+      }
+      setJobSeekerCurrentStep(2);
+      return;
+    } else if (jobSeekerCurrentStep === 2) {
+      // Add any step 2 specific validations here if needed
+      setJobSeekerCurrentStep(3);
+      return;
     }
+    
+    console.log('Final step - submitting form');
 
+    // Form validation
     if (jobSeekerData.password !== jobSeekerData.confirmPassword) {
       toast({ title: "Passwords do not match", description: "Please confirm your password.", variant: "destructive" })
       return
@@ -110,105 +131,213 @@ export default function SignUpPage() {
       return
     }
 
-    const payload: InternPayload = {
-      name: jobSeekerData.fullName,
-      email: jobSeekerData.email,
-      password: jobSeekerData.password,
-      location: jobSeekerData.location,
-      phone: jobSeekerData.phone || undefined,
-      institution: jobSeekerData.education,
-      fieldOfStudy: jobSeekerData.program,
-      program: jobSeekerData.program,
-      internshipType: jobSeekerData.internshipType,
-      preferredRoles: jobSeekerData.desiredRoles
-        ? jobSeekerData.desiredRoles
-            .split(",")
-            .map((s) => s.trim())
-            .filter(Boolean)
-        : undefined,
-      linkedinUrl: jobSeekerData.linkedin || undefined,
-      personalWebsiteUrl: jobSeekerData.personalWebsite || undefined,
-      bio: jobSeekerData.bio || undefined,
-    }
+    try {
+      console.log('Starting form submission');
+      setIsJobSeekerSubmitting(true);
+      
+      // Create form data for file uploads
+      const formData = new FormData();
+      console.log('FormData created');
+      
+      // Prepare the data object
+      const registrationData = {
+        name: jobSeekerData.fullName,
+        email: jobSeekerData.email,
+        password: jobSeekerData.password,
+        location: jobSeekerData.location,
+        phone: jobSeekerData.phone,
+        institution: jobSeekerData.education,
+        fieldOfStudy: jobSeekerData.program,
+        program: jobSeekerData.program,
+        internshipType: jobSeekerData.internshipType,
+        preferredRoles: jobSeekerData.desiredRoles
+          ? jobSeekerData.desiredRoles.split(",").map((s) => s.trim()).filter(Boolean)
+          : undefined,
+        linkedinUrl: jobSeekerData.linkedin || undefined,
+        personalWebsiteUrl: jobSeekerData.personalWebsite || undefined,
+        bio: jobSeekerData.bio || undefined,
+      };
 
-    setIsJobSeekerSubmitting(true)
-    const result = await registerIntern(payload)
-    setIsJobSeekerSubmitting(false)
+      // Add all fields to formData
+      Object.entries(registrationData).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          if (Array.isArray(value)) {
+            formData.append(key, JSON.stringify(value));
+          } else {
+            formData.append(key, String(value));
+          }
+        }
+      });
+      
+      // Append files if they exist
+      if (jobSeekerData.profilePicture) {
+        formData.append('profilePicture', jobSeekerData.profilePicture);
+      }
+      
+      if (jobSeekerData.cv) {
+        formData.append('cv', jobSeekerData.cv);
+      }
 
-    if (result.ok) {
-      toast({ title: "Account created", description: "You can now log in." })
-      router.push("/auth/login")
-    } else {
-      toast({ title: "Registration failed", description: result.error, variant: "destructive" })
+      // Debug: Log form data before sending
+      console.log('FormData entries:');
+      const formDataObj: Record<string, any> = {};
+      for (let [key, value] of formData.entries()) {
+        console.log(key, value);
+        formDataObj[key] = value;
+      }
+      console.log('FormData object:', JSON.stringify(formDataObj, null, 2));
+
+      // Send the form data directly to the API endpoint
+      const baseUrl = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:5000';
+      const apiUrl = `${baseUrl}/api/auth/register/intern`;
+      console.log('Sending request to:', apiUrl);
+      
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'Accept': 'application/json',
+          },
+        });
+
+        const responseText = await response.text();
+        console.log('Response status:', response.status);
+        console.log('Response:', responseText);
+        
+        let data;
+        try {
+          data = responseText ? JSON.parse(responseText) : {};
+          
+          if (!response.ok) {
+            throw new Error(data.message || data.error || `Registration failed with status ${response.status}`);
+          }
+          
+          // Show success message
+          toast({ 
+            title: "Account created", 
+            description: "You can now log in.",
+            variant: "default"
+          });
+          
+          // Redirect to login page after a short delay
+          setTimeout(() => {
+            router.push("/auth/login");
+          }, 1500);
+          
+          return data;
+          
+        } catch (e) {
+          console.error('Error processing response:', e);
+          throw new Error('Invalid response from server');
+        }
+      } catch (error) {
+        console.error('Network error:', error);
+        throw new Error('Failed to connect to the server. Please check your internet connection.');
+      }
+         
+      
+    } catch (error) {
+      console.error('Registration error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Registration failed. Please try again.';
+      toast({ 
+        title: "Registration failed", 
+        description: errorMessage, 
+        variant: "destructive" 
+      });
+      throw error; // Re-throw to be caught by the outer catch block
+    } finally {
+      setIsJobSeekerSubmitting(false);
     }
   }
 
   const handleCompanySubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (companyCurrentStep < 6) {
-      setCompanyCurrentStep(companyCurrentStep + 1)
-      return
+    e.preventDefault();
+    
+    // Handle form validation for the current step
+    if (companyCurrentStep === 1) {
+      if (!companyData.companyName || !companyData.companyEmail || !companyData.password || !companyData.confirmPassword) {
+        toast({ title: "Missing required fields", description: "Please fill in all required fields.", variant: "destructive" });
+        return;
+      }
+      if (companyData.password !== companyData.confirmPassword) {
+        toast({ title: "Passwords do not match", description: "Please make sure your passwords match.", variant: "destructive" });
+        return;
+      }
+      if (!companyData.agreeToTerms) {
+        toast({ title: "Terms not accepted", description: "You must accept the terms and conditions to continue.", variant: "destructive" });
+        return;
+      }
+      setCompanyCurrentStep(2);
+      return;
+    } else if (companyCurrentStep < 6) {
+      // For steps 2-5, just move to the next step
+      setCompanyCurrentStep(prev => prev + 1);
+      return;
     }
 
-    if (companyData.password !== companyData.confirmPassword) {
-      toast({ title: "Passwords do not match", description: "Please confirm your password.", variant: "destructive" })
-      return
-    }
-    if (!companyData.agreeToTerms) {
-      toast({ title: "Please accept the terms", description: "You must agree to continue.", variant: "destructive" })
-      return
-    }
+    try {
+      setIsCompanySubmitting(true);
+      
+      const payload: CompanyPayload = {
+        name: companyData.companyName,
+        email: companyData.companyEmail,
+        password: companyData.password,
+        location: companyData.location,
+        phone: companyData.contactPhone || undefined,
+        headquartersLocation: companyData.headquartersLocation || undefined,
+        otherBranches: companyData.otherBranches
+          ? companyData.otherBranches.split(",").map((s) => s.trim()).filter(Boolean)
+          : undefined,
+        workEnvironment: companyData.workEnvironmentOptions || undefined,
+        organizationType: companyData.organizationType || undefined,
+        industry: companyData.industryField || undefined,
+        fieldOfStudy: companyData.fieldOfStudy || undefined,
+        websiteUrl: companyData.officialWebsite || undefined,
+        contactPersonName: companyData.contactFullName || undefined,
+        contactPersonJobTitle: companyData.jobTitle || undefined,
+        contactPersonEmail: companyData.contactEmail || undefined,
+        contactPersonPhoneNumber: companyData.contactPhone || undefined,
+        description: companyData.companyDescription || undefined,
+        teamSize: companyData.teamSize || undefined,
+        socialMediaLinks: companyData.socialMediaLinks
+          ? companyData.socialMediaLinks.split(",").map((s) => s.trim()).filter(Boolean)
+          : undefined,
+        linkedinUrl: companyData.linkedin || undefined,
+        hiringRoles: companyData.rolesToFill
+          ? companyData.rolesToFill.split(",").map((s) => s.trim()).filter(Boolean)
+          : undefined,
+        internshipDuration: companyData.internshipDuration || undefined,
+        compensationRange: companyData.compensationRange || undefined,
+      };
 
-    const payload: CompanyPayload = {
-      name: companyData.companyName,
-      email: companyData.companyEmail,
-      password: companyData.password,
-      location: companyData.location,
-      phone: companyData.contactPhone || undefined,
-      headquartersLocation: companyData.headquartersLocation || undefined,
-      otherBranches: companyData.otherBranches
-        ? companyData.otherBranches
-            .split(",")
-            .map((s) => s.trim())
-            .filter(Boolean)
-        : undefined,
-      workEnvironment: companyData.workEnvironmentOptions || undefined,
-      organizationType: companyData.organizationType || undefined,
-      industry: companyData.industryField || undefined,
-      fieldOfStudy: companyData.fieldOfStudy || undefined,
-      websiteUrl: companyData.officialWebsite || undefined,
-      contactPersonName: companyData.contactFullName || undefined,
-      contactPersonJobTitle: companyData.jobTitle || undefined,
-      contactPersonEmail: companyData.contactEmail || undefined,
-      contactPersonPhoneNumber: companyData.contactPhone || undefined,
-      description: companyData.companyDescription || undefined,
-      teamSize: companyData.teamSize || undefined,
-      socialMediaLinks: companyData.socialMediaLinks
-        ? companyData.socialMediaLinks
-            .split(",")
-            .map((s) => s.trim())
-            .filter(Boolean)
-        : undefined,
-      linkedinUrl: companyData.linkedin || undefined,
-      hiringRoles: companyData.rolesToFill
-        ? companyData.rolesToFill
-            .split(",")
-            .map((s) => s.trim())
-            .filter(Boolean)
-        : undefined,
-      internshipDuration: companyData.internshipDuration || undefined,
-      compensationRange: companyData.compensationRange || undefined,
-    }
-
-    setIsCompanySubmitting(true)
-    const result = await registerCompany(payload)
-    setIsCompanySubmitting(false)
-
-    if (result.ok) {
-      toast({ title: "Company registered", description: "You can now log in." })
-      router.push("/auth/login")
-    } else {
-      toast({ title: "Registration failed", description: result.error, variant: "destructive" })
+      console.log('Submitting company registration:', payload);
+      const result = await registerCompany(payload);
+      
+      if (result.ok) {
+        console.log('Registration successful:', result);
+        toast({ 
+          title: "Registration successful!", 
+          description: "Your company account has been created. Redirecting to login..." 
+        });
+        router.push("/auth/login");
+      } else {
+        console.error('Registration failed:', result);
+        toast({ 
+          title: "Registration failed", 
+          description: result.error || "An error occurred during registration. Please try again.", 
+          variant: "destructive" 
+        });
+      }
+    } catch (error) {
+      console.error('Error during registration:', error);
+      toast({ 
+        title: "Error", 
+        description: "An unexpected error occurred. Please try again.", 
+        variant: "destructive" 
+      });
+    } finally {
+      setIsCompanySubmitting(false);
     }
   }
 
@@ -219,7 +348,7 @@ export default function SignUpPage() {
       setCompanyCurrentStep(companyCurrentStep - 1)
     }
   }
-
+  
   const getRightPanelContent = () => {
     if (activeTab === "jobseeker") {
       switch (jobSeekerCurrentStep) {
@@ -230,7 +359,7 @@ export default function SignUpPage() {
           }
         case 2:
           return {
-            title: "Let's fill some details to make you stand out from the rest",
+            title: "Let\'s fill some details to make you stand out from the rest",
             author: "",
           }
         case 3:
@@ -251,7 +380,7 @@ export default function SignUpPage() {
           }
         case 2:
           return {
-            title: "Let's build your company profile and connect you with the next generation of talent.",
+            title: "Let\'s build your company profile and connect you with the next generation of talent.",
             author: "",
           }
         case 3:
@@ -306,26 +435,27 @@ export default function SignUpPage() {
                 }}
               >
                 <TabsList className="grid w-full grid-cols-2 mb-6">
-                  <TabsTrigger
-                    value="jobseeker"
-                    className={`flex items-center space-x-2 ${activeTab === "jobseeker" ? "bg-teal-700" : ""}`}
-                  >
-                    <Users className="h-4 w-4" />
-                    <span>Talent</span>
-                  </TabsTrigger>
+  <TabsTrigger
+    value="jobseeker"
+    className={`flex items-center space-x-2 ${activeTab === "jobseeker" ? "bg-teal-700" : ""}`}
+  >
+    <Users className="h-4 w-4" />
+    <span>Talent</span>
+  </TabsTrigger>
 
-                  <TabsTrigger
-                    value="company"
-                    className={`flex items-center space-x-2 ${activeTab === "company" ? "bg-teal-700" : ""}`}
-                  >
-                    <Building className="h-4 w-4" />
-                    <span>Company</span>
-                  </TabsTrigger>
-                </TabsList>
+  <TabsTrigger
+    value="company"
+    className={`flex items-center space-x-2 ${activeTab === "company" ? "bg-teal-700" : ""}`}
+  >
+    <Building className="h-4 w-4" />
+    <span>Company</span>
+  </TabsTrigger>
+</TabsList>
+
 
                 {/* Job Seeker Form */}
                 <TabsContent value="jobseeker">
-                  <form onSubmit={handleJobSeekerSubmit} className="space-y-4">
+                  <form id="jobseeker-form" onSubmit={handleJobSeekerSubmit} className="space-y-4">
                     {jobSeekerCurrentStep === 1 && (
                       <>
                         <Input
@@ -394,13 +524,24 @@ export default function SignUpPage() {
                             </Link>
                           </label>
                         </div>
-                        <Button
-                          type="submit"
-                          className="w-full bg-teal-600 hover:bg-teal-700"
-                          disabled={isJobSeekerSubmitting}
-                        >
-                          {isJobSeekerSubmitting ? "Submitting..." : "Sign Up"}
-                        </Button>
+                        {jobSeekerCurrentStep < 3 ? (
+                          <Button 
+                            type="button"
+                            className="w-full bg-teal-600 hover:bg-teal-700" 
+                            onClick={() => setJobSeekerCurrentStep(prev => prev + 1)}
+                            disabled={isJobSeekerSubmitting}
+                          >
+                            Continue
+                          </Button>
+                        ) : (
+                          <Button 
+                            type="submit"
+                            className="w-full bg-teal-600 hover:bg-teal-700"
+                            disabled={isJobSeekerSubmitting}
+                          >
+                            {isJobSeekerSubmitting ? 'Submitting...' : 'Submit'}
+                          </Button>
+                        )}
                         <div className="text-center mt-2 pt-2 border-t">
                           <p className="text-gray-600">
                             Already a Signup?
@@ -493,11 +634,7 @@ export default function SignUpPage() {
                             >
                               Back
                             </Button>
-                            <Button
-                              type="submit"
-                              className="w-full bg-teal-600 hover:bg-teal-700"
-                              disabled={isJobSeekerSubmitting}
-                            >
+                            <Button type="submit" className="w-full bg-teal-600 hover:bg-teal-700" disabled={isJobSeekerSubmitting}>
                               {isJobSeekerSubmitting ? "Please wait..." : "Continue"}
                             </Button>
                           </div>
@@ -516,129 +653,25 @@ export default function SignUpPage() {
                           onChange={(e) => setJobSeekerData({ ...jobSeekerData, linkedin: e.target.value })}
                         />
                         <Input
-                          placeholder="Personal Website URL"
-                          value={jobSeekerData.personalWebsite}
-                          onChange={(e) => setJobSeekerData({ ...jobSeekerData, personalWebsite: e.target.value })}
-                        />
-                        <textarea
-                          placeholder="Bio (Tell us about yourself)"
-                          value={jobSeekerData.bio}
-                          onChange={(e) => setJobSeekerData({ ...jobSeekerData, bio: e.target.value })}
-                          className="flex h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        />
-                        <FileUploadPlaceholder
-                          label="Upload Your CV"
-                          icon={FileText}
-                          onFileChange={(file) => setJobSeekerData({ ...jobSeekerData, cv: file })}
-                        />
-                        <div className="flex justify-between gap-4">
-                          <div className="flex flex-col w-full gap-4">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              onClick={handleBack}
-                              className="w-full bg-transparent"
-                            >
-                              Back
-                            </Button>
-                            <Button
-                              type="submit"
-                              className="w-full bg-teal-600 hover:bg-teal-700"
-                              disabled={isJobSeekerSubmitting}
-                            >
-                              {isJobSeekerSubmitting ? "Submitting..." : "Done"}
-                            </Button>
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </form>
-                </TabsContent>
 
-                {/* Company Form */}
-                <TabsContent value="company">
-                  <form onSubmit={handleCompanySubmit} className="space-y-4">
-                    {companyCurrentStep === 1 && (
-                      <>
-                        <Input
-                          required
-                          placeholder="Company/Institution Name"
-                          value={companyData.companyName}
-                          onChange={(e) => setCompanyData({ ...companyData, companyName: e.target.value })}
-                        />
-                        <Input
-                          required
-                          type="email"
-                          placeholder="Company Email Address"
-                          value={companyData.companyEmail}
-                          onChange={(e) => setCompanyData({ ...companyData, companyEmail: e.target.value })}
-                        />
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <Input
-                            required
-                            type="password"
-                            placeholder="Create password"
-                            value={companyData.password}
-                            onChange={(e) => setCompanyData({ ...companyData, password: e.target.value })}
-                          />
-                          <Input
-                            required
-                            type="password"
-                            placeholder="Confirm password"
-                            value={companyData.confirmPassword}
-                            onChange={(e) => setCompanyData({ ...companyData, confirmPassword: e.target.value })}
-                          />
-                        </div>
-                        <Select
-                          value={companyData.location}
-                          onValueChange={(value) => setCompanyData({ ...companyData, location: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Location" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="new-york">New York</SelectItem>
-                            <SelectItem value="san-francisco">San Francisco</SelectItem>
-                            <SelectItem value="london">London</SelectItem>
-                            <SelectItem value="remote">Remote</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            checked={companyData.agreeToTerms}
-                            onCheckedChange={(checked) => setCompanyData({ ...companyData, agreeToTerms: !!checked })}
-                          />
-                          <label className="text-sm text-gray-600">
-                            I agree to the{" "}
-                            <Link href="/terms" className="text-teal-600 underline">
-                              Terms
-                            </Link>{" "}
-                            and{" "}
-                            <Link href="/privacy" className="text-teal-600 underline">
-                              Privacy
-                            </Link>
-                          </label>
-                        </div>
-                        <Button
-                          type="submit"
-                          className="w-full bg-teal-600 hover:bg-teal-700"
-                          disabled={isCompanySubmitting}
-                        >
-                          {isCompanySubmitting ? "Submitting..." : "Sign Up"}
-                        </Button>
-                        <div className="text-center mt-2 pt-2 border-t">
-                          <p className="text-gray-600">
-                            Already a user?{" "}
-                            <Link href="/auth/login" className="text-teal-600 font-medium underline">
-                              Login
-                            </Link>
-                          </p>
-                        </div>
-                      </>
-                    )}
+export default function SignUpPage() {
+  const router = useRouter()
+  const [activeTab, setActiveTab] = useState<"jobseeker" | "company">("jobseeker")
+  const [isLoading, setIsLoading] = useState(false)
+  const [formData, setFormData] = useState<FormData>({
+    email: "",
+    password: "",
+    confirmPassword: "",
+    agreeToTerms: false,
+  })
 
-                    {companyCurrentStep === 2 && (
-                      <>
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type, checked } = e.target
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }))
+  }
                         <div className="text-center mb-6">
                           <h4 className="text-xl font-semibold text-gray-900">
                             Tell us about your company or institution
@@ -713,11 +746,7 @@ export default function SignUpPage() {
                             >
                               Back
                             </Button>
-                            <Button
-                              type="submit"
-                              className="w-full bg-teal-600 hover:bg-teal-700"
-                              disabled={isCompanySubmitting}
-                            >
+                            <Button type="submit" className="w-full bg-teal-600 hover:bg-teal-700" disabled={isCompanySubmitting}>
                               {isCompanySubmitting ? "Please wait..." : "Continue"}
                             </Button>
                           </div>
@@ -763,11 +792,7 @@ export default function SignUpPage() {
                             >
                               Back
                             </Button>
-                            <Button
-                              type="submit"
-                              className="w-full bg-teal-600 hover:bg-teal-700"
-                              disabled={isCompanySubmitting}
-                            >
+                            <Button type="submit" className="w-full bg-teal-600 hover:bg-teal-700" disabled={isCompanySubmitting}>
                               {isCompanySubmitting ? "Please wait..." : "Continue"}
                             </Button>
                           </div>
@@ -805,11 +830,7 @@ export default function SignUpPage() {
                             >
                               Back
                             </Button>
-                            <Button
-                              type="submit"
-                              className="w-full bg-teal-600 hover:bg-teal-700"
-                              disabled={isCompanySubmitting}
-                            >
+                            <Button type="submit" className="w-full bg-teal-600 hover:bg-teal-700" disabled={isCompanySubmitting}>
                               {isCompanySubmitting ? "Please wait..." : "Continue"}
                             </Button>
                           </div>
@@ -910,11 +931,7 @@ export default function SignUpPage() {
                             >
                               Back
                             </Button>
-                            <Button
-                              type="submit"
-                              className="w-full bg-teal-600 hover:bg-teal-700"
-                              disabled={isCompanySubmitting}
-                            >
+                            <Button type="submit" className="w-full bg-teal-600 hover:bg-teal-700" disabled={isCompanySubmitting}>
                               {isCompanySubmitting ? "Submitting..." : "Done"}
                             </Button>
                           </div>
