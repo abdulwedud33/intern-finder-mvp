@@ -2,14 +2,14 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Upload, LinkIcon, MapPin, Clock, DollarSign, Users } from "lucide-react"
+import { ArrowLeft, Upload, MapPin, Clock, DollarSign, Users } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
@@ -30,76 +30,80 @@ function JobApplicationContent({ listingId }: { listingId: string }) {
     previousJobTitle: "",
   })
 
-  const { data } = useQuery({ 
-    queryKey: ["listing", listingId], 
-    queryFn: () => getListingById(listingId) 
-  })
-
-  // Handle redirection for non-intern users
-  useEffect(() => {
-    if (user && user.role !== 'intern') {
-      router.push(`/jobs/${listingId}`)
-    }
-  }, [user, router, listingId])
-
-  // Don't render anything if user is not an intern
-  if (user?.role !== 'intern') {
-    return null
-  }
-  const listing = (data as { data?: unknown } | undefined)?.data as {
-    title?: string
-    user?: { name?: string }
-    location?: string
-    typesOfEmployment?: string[]
-    type?: string
-    salaryRange?: { min: number; max: number }
-    applicantsCount?: number
-    description?: string
-    qualifications?: string[]
-  } | undefined
-
-  const jobData = {
-    title: listing?.title || "",
-    company: listing?.user?.name || "",
-    location: listing?.location || "",
-    type: Array.isArray(listing?.typesOfEmployment) ? listing?.typesOfEmployment.join(", ") : (listing?.type || ""),
-    salary: listing?.salaryRange ? `$${listing.salaryRange.min} - $${listing.salaryRange.max}` : "",
-    applicants: listing?.applicantsCount ?? 0,
-    description: listing?.description || "",
-    requirements: Array.isArray(listing?.qualifications) ? listing?.qualifications : [],
-  }
-
   const mutation = useMutation({
     mutationFn: async () => {
       if (!resumeFile) {
         throw new Error("Resume file is required")
       }
-      
+
       const formDataToSend = new FormData()
-      formDataToSend.append('coverLetter', formData.coverLetter)
-      formDataToSend.append('previousJobTitle', formData.previousJobTitle)
-      formDataToSend.append('resume', resumeFile)
-      
-      return await applyToListing(resolvedParams.id, formDataToSend)
+      formDataToSend.append("coverLetter", formData.coverLetter)
+      formDataToSend.append("previousJobTitle", formData.previousJobTitle)
+      formDataToSend.append("resume", resumeFile)
+
+      return await applyToListing(listingId, formDataToSend)
     },
     onSuccess: () => {
-      toast({ 
-        title: "Application submitted successfully!", 
+      toast({
+        title: "Application submitted successfully!",
         description: `Your application for ${jobData.title} at ${jobData.company} has been submitted. You'll hear back from the company soon.`,
-        duration: 5000
+        duration: 5000,
       })
       queryClient.invalidateQueries({ queryKey: ["my-applications"] })
       // Delay redirect to allow user to see the success message
       setTimeout(() => {
-        router.push(`/jobs/${resolvedParams.id}`)
+        router.push(`/jobs/${listingId}`)
       }, 2000)
     },
     onError: (error: unknown) => {
       const err = error as { response?: { data?: { message?: unknown } } }
-      const message = typeof err?.response?.data?.message === "string" ? err.response.data.message : "Failed to submit application"
+      const message =
+        typeof err?.response?.data?.message === "string" ? err.response.data.message : "Failed to submit application"
       toast({ title: "Could not apply", description: String(message), variant: "destructive" })
     },
   })
+
+  const { data } = useQuery({
+    queryKey: ["listing", listingId],
+    queryFn: () => getListingById(listingId),
+  })
+
+  // Handle redirection for non-intern users
+  useEffect(() => {
+    if (user && user.role !== "intern") {
+      router.push(`/jobs/${listingId}`)
+    }
+  }, [user, router, listingId])
+
+  // Don't render anything if user is not an intern
+  if (user?.role !== "intern") {
+    return null
+  }
+
+  const listing = (data as { data?: unknown } | undefined)?.data as
+    | {
+        title?: string
+        user?: { name?: string }
+        location?: string
+        typesOfEmployment?: string[]
+        type?: string
+        salaryRange?: { min: number; max: number }
+        applicantsCount?: number
+        description?: string
+        qualifications?: string[]
+      }
+    | undefined
+
+  const jobData = {
+    title: listing?.title || "",
+    company: listing?.user?.name || "",
+    location: listing?.location || "",
+    type: Array.isArray(listing?.typesOfEmployment) ? listing?.typesOfEmployment.join(", ") : listing?.type || "",
+    salary: listing?.salaryRange ? `$${listing.salaryRange.min} - $${listing.salaryRange.max}` : "",
+    applicants: listing?.applicantsCount ?? 0,
+    description: listing?.description || "",
+    requirements: Array.isArray(listing?.qualifications) ? listing?.qualifications : [],
+  }
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -115,14 +119,13 @@ function JobApplicationContent({ listingId }: { listingId: string }) {
     }
   }
 
-
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-white border-b shadow-sm">
         <div className="w-full px-6 lg:px-12 py-6">
           <div className="flex items-center gap-6 mb-4">
             <Button variant="ghost" size="sm" asChild className="text-gray-600 hover:text-gray-900">
-              <Link href={`/jobs/${resolvedParams.id}`}>
+              <Link href={`/jobs/${listingId}`}>
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Job Details
               </Link>
@@ -271,7 +274,6 @@ function JobApplicationContent({ listingId }: { listingId: string }) {
                       </div>
                     </div>
 
-
                     <div className="space-y-6">
                       <div className="border-b pb-4">
                         <h3 className="text-lg font-semibold text-gray-900">Resume & Documents</h3>
@@ -300,9 +302,7 @@ function JobApplicationContent({ listingId }: { listingId: string }) {
                               resume
                             </p>
                             <p className="text-sm text-gray-500">PDF, DOC, DOCX (max. 10MB)</p>
-                            {resumeFile && (
-                              <p className="text-sm text-green-600 mt-2">Selected: {resumeFile.name}</p>
-                            )}
+                            {resumeFile && <p className="text-sm text-green-600 mt-2">Selected: {resumeFile.name}</p>}
                           </label>
                         </div>
                       </div>
@@ -338,3 +338,5 @@ function JobApplicationContent({ listingId }: { listingId: string }) {
     </div>
   )
 }
+
+export default JobApplicationContent
