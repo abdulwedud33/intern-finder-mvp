@@ -56,6 +56,12 @@ const STAGES: Stage[] = [
 // Application Card Component
 function ApplicationCard({ application, onAction }: { application: Application; onAction: (action: string, application: Application) => void }) {
   const status = STAGES.find(s => s.id === application.stage) || STAGES[0]
+  const internName = application.intern?.name || 'Unknown Applicant';
+  const initials = internName
+    .split(' ')
+    .map(n => n[0])
+    .join('')
+    .toUpperCase();
   
   return (
     <Card className="mb-4 hover:shadow-md transition-shadow">
@@ -63,17 +69,16 @@ function ApplicationCard({ application, onAction }: { application: Application; 
         <div className="flex justify-between items-start">
           <div className="flex items-center space-x-3">
             <Avatar className="h-10 w-10">
-              <AvatarImage src={application.intern.profile?.avatar} alt={application.intern.name} />
+              <AvatarImage src={application.intern?.profile?.avatar} alt={internName} />
               <AvatarFallback>
-                {application.intern.name
-                  .split(' ')
-                  .map(n => n[0])
-                  .join('')}
+                {initials}
               </AvatarFallback>
             </Avatar>
             <div>
-              <h4 className="font-medium">{application.intern.name}</h4>
-              <p className="text-sm text-gray-500">{application.listing.title} at {application.listing.company}</p>
+              <h4 className="font-medium">{internName}</h4>
+              <p className="text-sm text-gray-500">
+                {application.listing?.title || 'Position'} at {application.listing?.company || 'Company'}
+              </p>
             </div>
           </div>
           <DropdownMenu>
@@ -205,7 +210,24 @@ export default function ApplicantsPage() {
     staleTime: 0
   })
 
-  const applications = useMemo(() => (applicationsData as any)?.data || [], [applicationsData])
+  const applications = useMemo(() => {
+    const data = (applicationsData as any)?.data || [];
+    // Ensure each application has a properly structured intern object
+    return data.map((app: any) => ({
+      ...app,
+      intern: {
+        id: app.intern?.id || '',
+        name: app.intern?.name || 'Unknown',
+        email: app.intern?.email || '',
+        profile: app.intern?.profile || {}
+      },
+      listing: app.listing || {
+        id: '',
+        title: 'Unknown Listing',
+        company: 'Unknown Company'
+      }
+    }));
+  }, [applicationsData])
   const totalItems = (applicationsData as any)?.pagination?.total || 0
   const totalPages = Math.ceil(totalItems / pagination.pageSize)
 
