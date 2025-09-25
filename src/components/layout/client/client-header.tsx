@@ -11,10 +11,12 @@ export function ClientHeader() {
     <header className="bg-gray-900 text-white px-6 py-4">
       <div className="flex items-center justify-between">
         {/* Logo - Left */}
+        <Link href="/">
         <div className="flex items-center space-x-2">
           <User className="w-5 h-5 text-teal-800" />
-          <span className="text-xl font-semibold">Intern Finder</span>
+          <span className="text-xl font-semibold">INTERN FINDER</span>
         </div>
+        </Link>
 
         {/* Center Section (Bell + Post a Job) */}
         <div className="flex items-center space-x-4">
